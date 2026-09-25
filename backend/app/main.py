@@ -504,14 +504,37 @@ async def upload_csv(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to process CSV: {str(e)}")
 
+@app.get("/api")
+@app.get("/api/")
+def api_root():
+    return {
+        "status": "healthy",
+        "app": "ApniBus E-Commerce Intelligence Dashboard API",
+        "version": "1.0.0",
+        "endpoints": [
+            "/api/overview",
+            "/api/sales",
+            "/api/cohort",
+            "/api/cohort-retention",
+            "/api/south-launch",
+            "/api/funnel",
+            "/api/regional",
+            "/api/creatives",
+            "/api/advisor",
+            "/api/health"
+        ]
+    }
+
 # Auto-alias all /api endpoints to also respond on unprefixed routes (e.g. /overview, /sales, /cohort) for serverless compatibility
 for _r in list(app.routes):
     if hasattr(_r, "path") and _r.path.startswith("/api/"):
         _alt_path = _r.path[4:]
         app.add_api_route(_alt_path, _r.endpoint, methods=list(_r.methods or ["GET"]), include_in_schema=False)
 
-# Mount frontend build static files (packaged inside backend/app/dist or root frontend/dist)
+# Mount frontend build static files (packaged inside backend/app/dist, root dist, or frontend/dist)
 FRONTEND_DIST = Path(__file__).resolve().parent / "dist"
+if not FRONTEND_DIST.exists():
+    FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "dist"
 if not FRONTEND_DIST.exists():
     FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
@@ -527,8 +550,6 @@ if FRONTEND_DIST.exists():
 
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     async def serve_spa(full_path: str):
-        if full_path.startswith("api"):
-            raise HTTPException(status_code=404, detail="API route not found")
         file_path = FRONTEND_DIST / full_path
         if file_path.exists() and file_path.is_file():
             return FileResponse(str(file_path))
