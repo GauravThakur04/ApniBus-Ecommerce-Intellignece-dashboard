@@ -36,6 +36,19 @@ app.add_middleware(
 
 analytics = AnalyticsEngine(data_store=data_store)
 
+@app.middleware("http")
+async def normalize_api_path(request, call_next):
+    # Normalize paths: if a request arrives as /overview or /cohort instead of /api/overview,
+    # or with trailing query params, route it properly to the /api endpoint if applicable
+    raw_path = request.scope.get("path", "")
+    if not raw_path.startswith("/api") and not raw_path.startswith("/assets") and raw_path not in ["", "/", "/index.html"]:
+        candidate = f"/api{raw_path}"
+        for route in app.routes:
+            if getattr(route, "path", None) == candidate:
+                request.scope["path"] = candidate
+                break
+    return await call_next(request)
+
 import asyncio
 
 async def automated_cron_sync_loop():
@@ -499,14 +512,24 @@ if not FRONTEND_DIST.exists():
 if FRONTEND_DIST.exists():
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
 
-    @app.get("/{full_path:path}")
+    @app.api_route("/", methods=["GET", "HEAD"])
+    async def root_index():
+        index_file = FRONTEND_DIST / "index.html"
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        return {"status": "ok", "app": "ApniBus E-Commerce Intelligence Dashboard"}
+
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     async def serve_spa(full_path: str):
         if full_path.startswith("api"):
             raise HTTPException(status_code=404, detail="API route not found")
         file_path = FRONTEND_DIST / full_path
         if file_path.exists() and file_path.is_file():
             return FileResponse(str(file_path))
-        return FileResponse(str(FRONTEND_DIST / "index.html"))
+        index_file = FRONTEND_DIST / "index.html"
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        raise HTTPException(status_code=404, detail="Resource not found")
 
 if __name__ == "__main__":
     uvicorn.run("backend.app.main:app", host="0.0.0.0", port=8000, reload=True)
