@@ -1,5 +1,6 @@
 import sys
 import os
+from urllib.parse import parse_qs, urlencode
 
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if root_dir not in sys.path:
@@ -7,22 +8,23 @@ if root_dir not in sys.path:
 
 from backend.app.main import app as fastapi_app
 
-# ASGI wrapper to reliably reconstruct original request path on Vercel serverless runtime
 async def app(scope, receive, send):
     if scope.get("type") == "http":
-        headers = dict(scope.get("headers", []))
-        # Vercel supplies the original requested path in x-matched-path or x-forwarded-uri
-        matched_path = headers.get(b"x-matched-path", b"").decode("utf-8")
-        forwarded_uri = headers.get(b"x-forwarded-uri", b"").decode("utf-8")
+        query_bytes = scope.get("query_string", b"")
+        query_str = query_bytes.decode("utf-8") if isinstance(query_bytes, bytes) else (query_bytes or "")
         
-        target_path = matched_path or forwarded_uri or scope.get("path", "")
-        if "?" in target_path:
-            target_path = target_path.split("?")[0]
-            
-        if target_path and target_path != "/api/index.py" and target_path != "/api/index":
-            scope["path"] = target_path
-            
-        if not scope["path"].startswith("/api") and not scope["path"].startswith("/docs") and not scope["path"].startswith("/openapi.json"):
-            scope["path"] = f"/api{scope['path']}"
-            
+        parsed_query = parse_qs(query_str, keep_blank_values=True)
+        
+        # If Vercel passed __route__ query param from rewrite
+        if "__route__" in parsed_query:
+            subpath = parsed_query.pop("__route__")[0].lstrip("/")
+            scope["path"] = f"/api/{subpath}" if subpath else "/api"
+            # Reconstruct clean query string without __route__
+            new_query = urlencode([(k, v) for k, vs in parsed_query.items() for v in vs])
+            scope["query_string"] = new_query.encode("utf-8")
+        else:
+            path = scope.get("path", "")
+            if not path.startswith("/api") and not path.startswith("/docs") and not path.startswith("/openapi.json"):
+                scope["path"] = f"/api{path}"
+                
     await fastapi_app(scope, receive, send)
