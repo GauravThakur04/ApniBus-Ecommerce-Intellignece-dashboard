@@ -649,7 +649,7 @@ export default function OverviewPage({ overviewData, salesData, advisorData, ano
             Reconciled Multi-Marketplace Master Status
           </h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            8 verified lifetime orders · ₹43,919.00 total order value · Google Sheets verified source of truth
+            12 verified master orders (11 Completed · 1 Cancelled) · ₹58,626.00 Gross GMV · ₹45,616.99 Net Bank Settlement · Google Sheets live source of truth
           </p>
         </div>
         <div className="flex items-center gap-2">

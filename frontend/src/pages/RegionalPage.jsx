@@ -115,7 +115,7 @@ export default function RegionalPage({ regionalData }) {
                 </span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                4 of 8 lifetime verified orders originate in this cluster at ₹75.00 CPO. Odisha (2 orders), West Bengal (1 order), Assam (1 order).
+                5 verified lifetime orders originate in this East/NE cluster (Odisha, West Bengal, Assam, Sikkim).
               </p>
             </div>
           </div>
