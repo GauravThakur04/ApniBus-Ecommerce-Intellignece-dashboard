@@ -1,0 +1,25 @@
+# Python
+backend/venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+
+# Node / Frontend
+frontend/node_modules/
+node_modules/
+frontend/dist/
+dist/
+.vite/
+
+# Environment and Local
+.env
+.env.local
+*.log
+.DS_Store
+
+# Temporary scratch
+scratch/
