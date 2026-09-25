@@ -504,6 +504,12 @@ async def upload_csv(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to process CSV: {str(e)}")
 
+# Auto-alias all /api endpoints to also respond on unprefixed routes (e.g. /overview, /sales, /cohort) for serverless compatibility
+for _r in list(app.routes):
+    if hasattr(_r, "path") and _r.path.startswith("/api/"):
+        _alt_path = _r.path[4:]
+        app.add_api_route(_alt_path, _r.endpoint, methods=list(_r.methods or ["GET"]), include_in_schema=False)
+
 # Mount frontend build static files (packaged inside backend/app/dist or root frontend/dist)
 FRONTEND_DIST = Path(__file__).resolve().parent / "dist"
 if not FRONTEND_DIST.exists():
