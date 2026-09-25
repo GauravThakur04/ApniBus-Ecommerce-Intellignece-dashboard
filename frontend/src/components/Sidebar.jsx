@@ -8,12 +8,12 @@ import {
 
 const NAV_ITEMS = [
   { id: 'overview', label: '5-Sales Control Room', icon: LayoutDashboard },
-  { id: 'sales', label: 'Orders & Revenue', icon: ShoppingBag },
+  { id: 'sales', label: 'Orders & Revenue', icon: ShoppingBag, badge: '12 ORDERS', badgeColor: 'bg-emerald-600 text-white' },
   { id: 'south', label: 'South India Launch', icon: Compass, badge: '10 AD SETS', badgeColor: 'bg-emerald-600 text-white' },
   { id: 'funnels', label: 'Conversion Funnel', icon: Layers },
   { id: 'hourly', label: 'Live Traffic Control', icon: Clock, badge: 'LIVE', badgeColor: 'bg-green-500 text-white animate-pulse' },
   { id: 'cohort', label: 'Visitor Intelligence', icon: Users },
-  { id: 'flipkart', label: 'Flipkart Hub', icon: Layers, badge: '5 ORDERS', badgeColor: 'bg-blue-600 text-white' },
+  { id: 'flipkart', label: 'Flipkart Hub', icon: Layers, badge: '7 ORDERS', badgeColor: 'bg-blue-600 text-white' },
   { id: 'marketing', label: 'Campaign Control', icon: BarChart3 },
   { id: 'regional', label: 'Regional Analytics', icon: MapPin },
   { id: 'creatives', label: 'Creative Intelligence', icon: Sparkles },

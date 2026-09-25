@@ -55,7 +55,7 @@ export default function FlipkartPage({ flipkartData }) {
               <ShoppingBag className="w-3 h-3" /> Flipkart Command Center
             </span>
             <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
-              5 VERIFIED ORDERS
+              {totalOrders || orders.length} VERIFIED ORDERS
             </span>
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight">
