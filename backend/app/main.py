@@ -8,7 +8,7 @@ import os
 import uvicorn
 from pathlib import Path
 
-from .services.ingestion import data_store
+from .services.ingestion import data_store, safe_save_cache
 from .services.analytics import AnalyticsEngine
 from .services.forecasting import forecasting_engine
 from .services.advisor import advisor_engine
@@ -478,25 +478,29 @@ async def upload_csv(
         if effective_type == "tracker":
             parsed = data_store.parse_tracker_csv(content)
             data_store.tracker_clicks = parsed
-            with open(DATA_DIR / "tracker_cache.json", "w", encoding="utf-8") as f:
-                json.dump(parsed, f)
+            data_store.recompute_indices()
+            data_store.last_sync_times["tracker"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            safe_save_cache("tracker_cache.json", parsed)
             return {"status": "success", "message": f"Ingested {len(parsed)} tracker records"}
         elif effective_type == "orders":
             parsed = data_store.parse_orders_sheet_csv(content)
             data_store.orders = parsed
-            with open(DATA_DIR / "orders_cache.json", "w", encoding="utf-8") as f:
-                json.dump(parsed, f, indent=2)
+            data_store.recompute_indices()
+            data_store.last_sync_times["orders"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            safe_save_cache("orders_cache.json", parsed)
             return {"status": "success", "message": f"Ingested {len(parsed)} order records"}
         elif effective_type == "flipkart_ads":
             parsed = data_store.parse_flipkart_ads_csv(content)
             data_store.flipkart_ads = parsed
-            with open(DATA_DIR / "flipkart_ads_cache.json", "w", encoding="utf-8") as f:
-                json.dump(parsed, f, indent=2)
+            data_store.recompute_indices()
+            data_store.last_sync_times["flipkart_ads"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            safe_save_cache("flipkart_ads_cache.json", parsed)
             return {"status": "success", "message": f"Ingested {len(parsed)} Flipkart Ads daily records"}
         elif effective_type == "amazon_ads":
             return {"status": "success", "message": "Amazon Ads CSV processed"}
         elif effective_type == "meta_regional":
             parsed = data_store.parse_meta_ads_export(content)
+            data_store.recompute_indices()
             return {"status": "success", "message": f"Ingested {len(parsed)} Meta Ads campaign records"}
         else:
             filename = file.filename if file else "text"

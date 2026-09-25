@@ -5,14 +5,34 @@ import re
 import urllib.request
 import urllib.parse
 from datetime import datetime
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from pathlib import Path
-from ..config import DATA_DIR, DEFAULT_TRACKER_CSV_URL, DEFAULT_ORDERS_SHEET_URL
+from ..config import DATA_DIR, BUNDLED_DATA_DIR, DEFAULT_TRACKER_CSV_URL, DEFAULT_ORDERS_SHEET_URL
 from ..models import Order, TrackerClick, AdSpendRecord, SearchTermRecord, ListingChange
 from .seed_data import (
     SEED_ORDERS, SEED_FLIPKART_ADS, SEED_AMAZON_ADS, 
     SEED_META_REGIONAL, SEED_CHANGES, SEED_SEARCH_TERMS
 )
+
+def get_cache_path(filename: str) -> Optional[Path]:
+    p1 = DATA_DIR / filename
+    if p1.exists():
+        return p1
+    p2 = BUNDLED_DATA_DIR / filename
+    if p2.exists():
+        return p2
+    return None
+
+def safe_save_cache(filename: str, data: Any):
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        with open(DATA_DIR / filename, "w", encoding="utf-8") as f:
+            if isinstance(data, list) and len(data) > 200:
+                json.dump(data, f)
+            else:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"Notice: could not persist {filename} to disk: {e}")
 
 def normalize_utm(val: Any) -> str:
     """Decodes URL-encoded parameters (+, %7C, %20) and standardizes pipe separators."""
@@ -298,8 +318,8 @@ class DataStore:
         return orders
 
     def _load_cached_tracker(self):
-        cache_path = DATA_DIR / "tracker_cache.json"
-        if cache_path.exists():
+        cache_path = get_cache_path("tracker_cache.json")
+        if cache_path and cache_path.exists():
             try:
                 with open(cache_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -319,12 +339,12 @@ class DataStore:
                         self.last_sync_times["tracker"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         self.data_health_notes["tracker"] = f"Metabase live click stream ({len(data)} total clicks)"
                         return
-            except:
-                pass
+            except Exception as e:
+                print("Notice: Error loading cached tracker:", e)
 
     def _load_cached_orders(self):
-        cache_path = DATA_DIR / "orders_cache.json"
-        if cache_path.exists():
+        cache_path = get_cache_path("orders_cache.json")
+        if cache_path and cache_path.exists():
             try:
                 with open(cache_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -337,8 +357,8 @@ class DataStore:
                 print("Error loading cached orders:", e)
 
     def _load_cached_flipkart_ads(self):
-        cache_path = DATA_DIR / "flipkart_ads_cache.json"
-        if cache_path.exists():
+        cache_path = get_cache_path("flipkart_ads_cache.json")
+        if cache_path and cache_path.exists():
             try:
                 with open(cache_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -351,8 +371,8 @@ class DataStore:
                 print("Error loading cached flipkart ads:", e)
 
     def _load_cached_meta_ads(self):
-        cache_path = DATA_DIR / "meta_ads_cache.json"
-        if cache_path.exists():
+        cache_path = get_cache_path("meta_ads_cache.json")
+        if cache_path and cache_path.exists():
             try:
                 with open(cache_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -406,8 +426,7 @@ class DataStore:
                     }
                     
         self.meta_campaigns_today = rows
-        with open(DATA_DIR / "meta_ads_cache.json", "w", encoding="utf-8") as f:
-            json.dump(rows, f, indent=2, ensure_ascii=False)
+        safe_save_cache("meta_ads_cache.json", rows)
         self.last_sync_times["meta_ads"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.data_health_notes["meta_ads"] = f"Meta Ads ingested ({len(rows)} campaigns)"
         return rows
@@ -514,11 +533,7 @@ class DataStore:
                         self.tracker_clicks = parsed
                         self.recompute_indices()
                         self.last_sync_times["tracker"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        try:
-                            with open(DATA_DIR / "tracker_cache.json", "w", encoding="utf-8") as f:
-                                json.dump(parsed, f)
-                        except Exception as e:
-                            print("Cache save notice:", e)
+                        safe_save_cache("tracker_cache.json", parsed)
                         return True, "Successfully ingested live tracker CSV", len(parsed)
                     return False, "CSV contained 0 valid rows", 0
 
@@ -550,11 +565,7 @@ class DataStore:
                     self.tracker_clicks = parsed
                     self.recompute_indices()
                     self.last_sync_times["tracker"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    try:
-                        with open(DATA_DIR / "tracker_cache.json", "w", encoding="utf-8") as f:
-                            json.dump(parsed, f)
-                    except Exception:
-                        pass
+                    safe_save_cache("tracker_cache.json", parsed)
                     return True, "Successfully ingested live tracker CSV", len(parsed)
                 return False, "CSV contained 0 valid rows", 0
                 
@@ -564,11 +575,7 @@ class DataStore:
                     self.orders = parsed
                     self.recompute_indices()
                     self.last_sync_times["orders"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    try:
-                        with open(DATA_DIR / "orders_cache.json", "w", encoding="utf-8") as f:
-                            json.dump(parsed, f, indent=2)
-                    except Exception:
-                        pass
+                    safe_save_cache("orders_cache.json", parsed)
                     return True, "Successfully ingested Google Sheet orders", len(parsed)
                 return False, "Order sheet contained 0 valid rows", 0
 
@@ -578,11 +585,7 @@ class DataStore:
                     self.flipkart_ads = parsed
                     self.recompute_indices()
                     self.last_sync_times["flipkart_ads"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    try:
-                        with open(DATA_DIR / "flipkart_ads_cache.json", "w", encoding="utf-8") as f:
-                            json.dump(parsed, f, indent=2)
-                    except Exception:
-                        pass
+                    safe_save_cache("flipkart_ads_cache.json", parsed)
                     return True, "Successfully ingested Flipkart Ads CSV", len(parsed)
                 return False, "Flipkart Ads CSV contained 0 valid rows", 0
 

@@ -4,29 +4,30 @@ const apiFetch = async (endpoint, options = {}) => {
     const res = await fetch(`/api${endpoint}`, options);
     if (res.ok) {
       return await res.json();
+    } else {
+      try {
+        const errData = await res.json();
+        const msg = errData.detail || errData.message || `HTTP ${res.status}: ${res.statusText}`;
+        throw new Error(msg);
+      } catch (parseErr) {
+        if (parseErr.message && !parseErr.message.includes('JSON')) {
+          throw parseErr;
+        }
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
     }
   } catch (e) {
-    // try fallback
-  }
-
-  // Fallback to direct backend on 8000
-  try {
-    const res2 = await fetch(`http://127.0.0.1:8000/api${endpoint}`, options);
-    if (res2.ok) {
-      return await res2.json();
+    // If in development on localhost and network failed, attempt localhost:8000 fallback
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      if (!options.body || typeof options.body === 'string') {
+        try {
+          const res2 = await fetch(`http://127.0.0.1:8000/api${endpoint}`, options);
+          if (res2.ok) return await res2.json();
+        } catch (e2) {}
+      }
     }
-  } catch (e) {
-    // try localhost fallback
+    throw e;
   }
-
-  try {
-    const res3 = await fetch(`http://localhost:8000/api${endpoint}`, options);
-    if (res3.ok) {
-      return await res3.json();
-    }
-  } catch (e) {}
-
-  throw new Error(`Failed to fetch /api${endpoint}`);
 };
 
 export const fetchOverview = async (params = {}) => {

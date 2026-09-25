@@ -2,8 +2,22 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data_storage"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+BUNDLED_DATA_DIR = BASE_DIR / "data_storage"
+
+# On Vercel or read-only container environments, use /tmp for runtime caching
+if os.getenv("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    DATA_DIR = Path("/tmp/apnibus_data_storage")
+else:
+    DATA_DIR = BASE_DIR / "data_storage"
+
+try:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    DATA_DIR = Path("/tmp/apnibus_data_storage")
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
 
 # Default URLs
 DEFAULT_TRACKER_CSV_URL = "https://data.apnibus.com/public/question/8659b871-d41c-41fc-b9b3-8df5a49194cf.csv"
