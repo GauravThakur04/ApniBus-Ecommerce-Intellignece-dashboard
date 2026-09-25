@@ -22,8 +22,8 @@
     "avg_fees_taxes": 688.0,
     "bank_settlement": 4089.0,
     "total_deductions": 909.0,
-    "settlement_basis": "Actual \u2014 Flipkart Settlement Calculator screenshot",
-    "attribution_level": "LEVEL 1 \u2014 VERIFIED"
+    "settlement_basis": "Actual — Flipkart Settlement Calculator screenshot",
+    "attribution_level": "LEVEL 1 — VERIFIED"
   },
   {
     "order_id": "OD338618566096348100",
@@ -48,8 +48,8 @@
     "avg_fees_taxes": 677.26,
     "bank_settlement": 4025.19,
     "total_deductions": 894.81,
-    "settlement_basis": "Estimated \u2014 ~14.4% fee rate scaled from row 5's actual settlement",
-    "attribution_level": "LEVEL 1 \u2014 VERIFIED"
+    "settlement_basis": "Estimated — ~14.4% fee rate scaled from row 5's actual settlement",
+    "attribution_level": "LEVEL 1 — VERIFIED"
   },
   {
     "order_id": "OD438547713093098400",
@@ -74,8 +74,8 @@
     "avg_fees_taxes": 689.24,
     "bank_settlement": 4096.36,
     "total_deductions": 910.64,
-    "settlement_basis": "Estimated \u2014 ~14.4% fee rate scaled from row 5's actual settlement",
-    "attribution_level": "LEVEL 1 \u2014 VERIFIED"
+    "settlement_basis": "Estimated — ~14.4% fee rate scaled from row 5's actual settlement",
+    "attribution_level": "LEVEL 1 — VERIFIED"
   },
   {
     "order_id": "OD338649464164942100",
@@ -100,8 +100,8 @@
     "avg_fees_taxes": 688.0,
     "bank_settlement": 4089.0,
     "total_deductions": 909.0,
-    "settlement_basis": "Estimated \u2014 ~14.4% fee rate scaled from row 5's actual settlement",
-    "attribution_level": "LEVEL 1 \u2014 VERIFIED"
+    "settlement_basis": "Estimated — ~14.4% fee rate scaled from row 5's actual settlement",
+    "attribution_level": "LEVEL 1 — VERIFIED"
   },
   {
     "order_id": "OD338683236044161100",
@@ -126,8 +126,8 @@
     "avg_fees_taxes": 688.0,
     "bank_settlement": 4089.0,
     "total_deductions": 909.0,
-    "settlement_basis": "Actual \u2014 Flipkart Settlement Calculator screenshot",
-    "attribution_level": "LEVEL 1 \u2014 VERIFIED"
+    "settlement_basis": "Actual — Flipkart Settlement Calculator screenshot",
+    "attribution_level": "LEVEL 1 — VERIFIED"
   },
   {
     "order_id": "OD438715228256915100",
@@ -152,8 +152,34 @@
     "avg_fees_taxes": 688.0,
     "bank_settlement": 4089.0,
     "total_deductions": 909.0,
-    "settlement_basis": "Estimated \u2014 ~14.4% fee rate scaled from row 5's actual settlement",
-    "attribution_level": "LEVEL 1 \u2014 VERIFIED"
+    "settlement_basis": "Estimated — ~14.4% fee rate scaled from row 5's actual settlement",
+    "attribution_level": "LEVEL 1 — VERIFIED"
+  },
+  {
+    "order_id": "OD338720446898501100",
+    "order_ref_id": "338720446898501100",
+    "platform": "Flipkart",
+    "order_date": "2026-09-25",
+    "order_time": "08:42 PM",
+    "status": "Order Placed",
+    "product": "ApniBus Ticket Machine with Thermal Printer | Portable ETM",
+    "sku": "ETM-AB007",
+    "customer_name": "Noble Chamling",
+    "ship_to": "Arithang, Gangtok, Sikkim, 737101",
+    "city": "Arithang, Gangtok",
+    "state": "Sikkim",
+    "pincode": "737101",
+    "qty": 1,
+    "unit_price": 4711.0,
+    "order_total": 4711.0,
+    "is_cancelled": false,
+    "net_revenue": 3854.2,
+    "customer_logistics_fee": 208.31,
+    "avg_fees_taxes": 648.49,
+    "bank_settlement": 3854.2,
+    "total_deductions": 856.8,
+    "settlement_basis": "Estimated — ~14.4% fee rate scaled from row 5's actual settlement",
+    "attribution_level": "LEVEL 1 — VERIFIED"
   },
   {
     "order_id": "408-5675230-1812305",
@@ -178,8 +204,8 @@
     "avg_fees_taxes": 0.0,
     "bank_settlement": 3600.97,
     "total_deductions": 1398.03,
-    "settlement_basis": "N/A \u2014 Amazon fee/commission breakdown not provided",
-    "attribution_level": "LEVEL 1 \u2014 VERIFIED"
+    "settlement_basis": "N/A — Amazon fee/commission breakdown not provided",
+    "attribution_level": "LEVEL 1 — VERIFIED"
   },
   {
     "order_id": "404-4989220-5242701",
@@ -204,8 +230,8 @@
     "avg_fees_taxes": 0.0,
     "bank_settlement": 3600.97,
     "total_deductions": 1398.03,
-    "settlement_basis": "N/A \u2014 Amazon fee/commission breakdown not provided",
-    "attribution_level": "LEVEL 1 \u2014 VERIFIED"
+    "settlement_basis": "N/A — Amazon fee/commission breakdown not provided",
+    "attribution_level": "LEVEL 1 — VERIFIED"
   },
   {
     "order_id": "405-9749509-1597136",
@@ -216,8 +242,8 @@
     "status": "Cancelled",
     "product": "ApniBus Ticket Machine with Inbuilt Thermal Printer | Portable Handheld Billing Device",
     "sku": "FH-TBZZ-WSUI",
-    "customer_name": "\u2014 (hidden, order cancelled)",
-    "ship_to": "\u2014 (hidden, order cancelled)",
+    "customer_name": "— (hidden, order cancelled)",
+    "ship_to": "— (hidden, order cancelled)",
     "city": "Location unavailable",
     "state": "Location unavailable",
     "pincode": null,
@@ -230,8 +256,8 @@
     "avg_fees_taxes": 0.0,
     "bank_settlement": 0.0,
     "total_deductions": 0.0,
-    "settlement_basis": "N/A \u2014 Amazon fee/commission breakdown not provided",
-    "attribution_level": "LEVEL 1 \u2014 VERIFIED"
+    "settlement_basis": "N/A — Amazon fee/commission breakdown not provided",
+    "attribution_level": "LEVEL 1 — VERIFIED"
   },
   {
     "order_id": "404-3528106-4694749",
@@ -256,8 +282,8 @@
     "avg_fees_taxes": 0.0,
     "bank_settlement": 6482.33,
     "total_deductions": 2516.67,
-    "settlement_basis": "N/A \u2014 Amazon fee/commission breakdown not provided",
-    "attribution_level": "LEVEL 1 \u2014 VERIFIED"
+    "settlement_basis": "N/A — Amazon fee/commission breakdown not provided",
+    "attribution_level": "LEVEL 1 — VERIFIED"
   },
   {
     "order_id": "404-8916452-1042720",
@@ -282,7 +308,7 @@
     "avg_fees_taxes": 0.0,
     "bank_settlement": 3600.97,
     "total_deductions": 1398.03,
-    "settlement_basis": "N/A \u2014 Amazon fee/commission breakdown not provided",
-    "attribution_level": "LEVEL 1 \u2014 VERIFIED"
+    "settlement_basis": "N/A — Amazon fee/commission breakdown not provided",
+    "attribution_level": "LEVEL 1 — VERIFIED"
   }
 ]
