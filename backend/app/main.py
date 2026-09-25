@@ -442,8 +442,8 @@ class SyncUrlRequest(BaseModel):
     url: str
 
 @app.post("/api/sync-url")
-def sync_url(req: SyncUrlRequest):
-    success, msg, count = data_store.sync_from_url(req.source_type, req.url)
+async def sync_url(req: SyncUrlRequest):
+    success, msg, count = await asyncio.to_thread(data_store.sync_from_url, req.source_type, req.url)
     if not success:
         raise HTTPException(status_code=400, detail=msg)
     return {"status": "success", "message": msg, "records_ingested": count}

@@ -91,9 +91,12 @@ class DataStore:
         except:
             return 0.0
 
-    def parse_tracker_csv(self, content: str) -> List[Dict[str, Any]]:
+    def parse_tracker_csv(self, content_or_iterable: Any) -> List[Dict[str, Any]]:
         clicks = []
-        f = io.StringIO(content)
+        if isinstance(content_or_iterable, str):
+            f = io.StringIO(content_or_iterable)
+        else:
+            f = content_or_iterable
         reader = csv.reader(f)
         header = None
         for row in reader:
@@ -492,9 +495,28 @@ class DataStore:
             if "docs.google.com/spreadsheets/d/" in url:
                 url = normalize_google_sheet_url(url)
             import ssl
+            import codecs
             ctx = ssl._create_unverified_context()
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (ApniBus-ETM-Dashboard)"})
-            with urllib.request.urlopen(req, context=ctx, timeout=30) as resp:
+            
+            # If tracker or large endpoint, stream lines directly
+            if "question" in url or source_type == "tracker":
+                with urllib.request.urlopen(req, context=ctx, timeout=60) as resp:
+                    lines = codecs.iterdecode(resp, "utf-8", errors="ignore")
+                    parsed = self.parse_tracker_csv(lines)
+                    if parsed:
+                        self.tracker_clicks = parsed
+                        self.recompute_indices()
+                        self.last_sync_times["tracker"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        try:
+                            with open(DATA_DIR / "tracker_cache.json", "w", encoding="utf-8") as f:
+                                json.dump(parsed, f)
+                        except Exception as e:
+                            print("Cache save notice:", e)
+                        return True, "Successfully ingested live tracker CSV", len(parsed)
+                    return False, "CSV contained 0 valid rows", 0
+
+            with urllib.request.urlopen(req, context=ctx, timeout=45) as resp:
                 content = resp.read().decode("utf-8", errors="ignore")
                 
             # Content-based auto-detection of data type
@@ -517,8 +539,11 @@ class DataStore:
                     self.tracker_clicks = parsed
                     self.recompute_indices()
                     self.last_sync_times["tracker"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    with open(DATA_DIR / "tracker_cache.json", "w", encoding="utf-8") as f:
-                        json.dump(parsed, f)
+                    try:
+                        with open(DATA_DIR / "tracker_cache.json", "w", encoding="utf-8") as f:
+                            json.dump(parsed, f)
+                    except Exception:
+                        pass
                     return True, "Successfully ingested live tracker CSV", len(parsed)
                 return False, "CSV contained 0 valid rows", 0
                 
@@ -528,8 +553,11 @@ class DataStore:
                     self.orders = parsed
                     self.recompute_indices()
                     self.last_sync_times["orders"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    with open(DATA_DIR / "orders_cache.json", "w", encoding="utf-8") as f:
-                        json.dump(parsed, f, indent=2)
+                    try:
+                        with open(DATA_DIR / "orders_cache.json", "w", encoding="utf-8") as f:
+                            json.dump(parsed, f, indent=2)
+                    except Exception:
+                        pass
                     return True, "Successfully ingested Google Sheet orders", len(parsed)
                 return False, "Order sheet contained 0 valid rows", 0
 
@@ -539,8 +567,11 @@ class DataStore:
                     self.flipkart_ads = parsed
                     self.recompute_indices()
                     self.last_sync_times["flipkart_ads"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    with open(DATA_DIR / "flipkart_ads_cache.json", "w", encoding="utf-8") as f:
-                        json.dump(parsed, f, indent=2)
+                    try:
+                        with open(DATA_DIR / "flipkart_ads_cache.json", "w", encoding="utf-8") as f:
+                            json.dump(parsed, f, indent=2)
+                    except Exception:
+                        pass
                     return True, "Successfully ingested Flipkart Ads CSV", len(parsed)
                 return False, "Flipkart Ads CSV contained 0 valid rows", 0
 
