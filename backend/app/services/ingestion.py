@@ -496,13 +496,19 @@ class DataStore:
                 url = normalize_google_sheet_url(url)
             import ssl
             import codecs
+            import gzip
             ctx = ssl._create_unverified_context()
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (ApniBus-ETM-Dashboard)"})
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (ApniBus-ETM-Dashboard)",
+                "Accept-Encoding": "gzip, deflate"
+            })
             
-            # If tracker or large endpoint, stream lines directly
+            # If tracker or large endpoint, stream lines directly with gzip support
             if "question" in url or source_type == "tracker":
                 with urllib.request.urlopen(req, context=ctx, timeout=60) as resp:
-                    lines = codecs.iterdecode(resp, "utf-8", errors="ignore")
+                    is_gz = resp.info().get("Content-Encoding") == "gzip"
+                    gz = gzip.GzipFile(fileobj=resp) if is_gz else resp
+                    lines = codecs.iterdecode(gz, "utf-8", errors="ignore")
                     parsed = self.parse_tracker_csv(lines)
                     if parsed:
                         self.tracker_clicks = parsed
@@ -517,7 +523,12 @@ class DataStore:
                     return False, "CSV contained 0 valid rows", 0
 
             with urllib.request.urlopen(req, context=ctx, timeout=45) as resp:
-                content = resp.read().decode("utf-8", errors="ignore")
+                is_gz = resp.info().get("Content-Encoding") == "gzip"
+                if is_gz:
+                    gz = gzip.GzipFile(fileobj=resp)
+                    content = gz.read().decode("utf-8", errors="ignore")
+                else:
+                    content = resp.read().decode("utf-8", errors="ignore")
                 
             # Content-based auto-detection of data type
             lower_sample = content[:4000].lower()

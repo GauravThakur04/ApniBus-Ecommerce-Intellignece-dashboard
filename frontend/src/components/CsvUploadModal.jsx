@@ -28,6 +28,7 @@ export default function CsvUploadModal({ isOpen, onClose, onRefreshData }) {
     e.preventDefault();
     setLoading(true);
     setFeedback(null);
+    const startTime = performance.now();
     try {
       let finalUrl = urlInput.trim();
       if (finalUrl.includes('docs.google.com/spreadsheets/d/')) {
@@ -40,7 +41,11 @@ export default function CsvUploadModal({ isOpen, onClose, onRefreshData }) {
         }
       }
       const res = await syncUrl(sourceType, finalUrl);
-      setFeedback({ type: 'success', message: `${res.message} (${res.records_ingested} records updated)` });
+      const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+      setFeedback({ 
+        type: 'success', 
+        message: `⚡ Live Ingestion Succeeded in ${elapsed}s: ${res.message} (${res.records_ingested?.toLocaleString?.() || res.records_ingested} records updated live)` 
+      });
       onRefreshData();
     } catch (err) {
       setFeedback({ type: 'error', message: err.message || 'Failed to sync URL' });
@@ -54,9 +59,11 @@ export default function CsvUploadModal({ isOpen, onClose, onRefreshData }) {
     if (!selectedFile) return;
     setLoading(true);
     setFeedback(null);
+    const startTime = performance.now();
     try {
       const res = await uploadCsvFile(sourceType, selectedFile);
-      setFeedback({ type: 'success', message: res.message });
+      const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+      setFeedback({ type: 'success', message: `⚡ Ingested in ${elapsed}s: ${res.message}` });
       onRefreshData();
     } catch (err) {
       setFeedback({ type: 'error', message: err.message || 'Upload failed' });
@@ -70,9 +77,11 @@ export default function CsvUploadModal({ isOpen, onClose, onRefreshData }) {
     if (!rawCsvText.trim()) return;
     setLoading(true);
     setFeedback(null);
+    const startTime = performance.now();
     try {
       const res = await uploadCsvRawText(sourceType, rawCsvText);
-      setFeedback({ type: 'success', message: `${res.message} (Data reconciled across Main & East Region campaigns)` });
+      const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+      setFeedback({ type: 'success', message: `⚡ Parsed in ${elapsed}s: ${res.message} (Data reconciled across Main & East Region campaigns)` });
       onRefreshData();
     } catch (err) {
       setFeedback({ type: 'error', message: err.message || 'Upload failed' });
