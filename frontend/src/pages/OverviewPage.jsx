@@ -649,7 +649,17 @@ export default function OverviewPage({ overviewData, salesData, advisorData, ano
             Reconciled Multi-Marketplace Master Status
           </h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            12 verified master orders (11 Completed · 1 Cancelled) · ₹58,626.00 Gross GMV · ₹45,616.99 Net Bank Settlement · Google Sheets live source of truth
+            {(() => {
+              const ov = overviewData || {};
+              const t1 = ov.tier1_kpis || {};
+              const t2 = ov.tier2_kpis || {};
+              const totalOrders = (t1.total_orders?.value ?? salesData?.orders_table?.length ?? 12);
+              const cancelledOrders = (t2.cancelled_orders ?? 1);
+              const completedOrders = totalOrders - cancelledOrders;
+              const grossGmv = (t1.gross_revenue?.value ?? 58626);
+              const netSettlement = (t1.net_settlement?.value ?? 45617);
+              return `${totalOrders} verified master orders (${completedOrders} Completed · ${cancelledOrders} Cancelled) · ₹${grossGmv.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Gross GMV · ₹${netSettlement.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Net Bank Settlement · Google Sheets live source of truth`;
+            })()}
           </p>
         </div>
         <div className="flex items-center gap-2">

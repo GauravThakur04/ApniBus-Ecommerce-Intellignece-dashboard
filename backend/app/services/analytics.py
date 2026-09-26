@@ -515,12 +515,26 @@ class AnalyticsEngine:
             
         detailed_orders.sort(key=parse_order_dt, reverse=True)
             
+        completed_orders = [o for o in valid_orders]
+        cancelled_orders = [o for o in orders if o.get("is_cancelled")]
+        summary = {
+            "gross_gmv": round(sum(o.get("order_total", 0.0) for o in valid_orders), 2),
+            "net_settlement": round(sum(o.get("bank_settlement", 0.0) for o in valid_orders), 2),
+            "total_orders": len(orders),
+            "completed_orders": len(completed_orders),
+            "cancelled_orders": len(cancelled_orders),
+            "flipkart_orders": len([o for o in orders if (o.get("platform") or "").lower() == "flipkart"]),
+            "amazon_orders": len([o for o in orders if (o.get("platform") or "").lower() == "amazon"]),
+            "units_sold": sum(o.get("qty", 1) for o in valid_orders),
+        }
+            
         return {
             "trend": trend,
             "marketplace_comparison": marketplace_comparison,
             "state_sales": state_sales,
             "orders_table": detailed_orders,
-            "next_sale_prediction": next_sale_pred
+            "next_sale_prediction": next_sale_pred,
+            "summary": summary
         }
 
     @cached_analytics
@@ -1742,6 +1756,17 @@ class AnalyticsEngine:
             top_kpis['orders'] = top_kpis['verified_orders']
             top_kpis['cpo'] = top_kpis['cost_per_verified_order']
 
+            valid_orders_all = [o for o in self.ds.orders if not o.get("is_cancelled")]
+            lifetime_metrics = {
+                'total_orders': len(self.ds.orders),
+                'completed_orders': len(valid_orders_all),
+                'cancelled_orders': len([o for o in self.ds.orders if o.get("is_cancelled")]),
+                'gross_gmv': round(sum(o.get("order_total", 0.0) for o in valid_orders_all), 2),
+                'net_settlement': round(sum(o.get("bank_settlement", 0.0) for o in valid_orders_all), 2),
+                'flipkart_orders': len([o for o in self.ds.orders if (o.get("platform") or "").lower() == "flipkart"]),
+                'amazon_orders': len([o for o in self.ds.orders if (o.get("platform") or "").lower() == "amazon"]),
+            }
+
             return {
                 'today_date': today_str,
                 'yesterday_date': yesterday_str,
@@ -1755,7 +1780,9 @@ class AnalyticsEngine:
                 'repetition_distribution': repetition_card,
                 'sales_signal': sales_signal,
                 'action_center': action_center,
-                'actions': action_center['actions']
+                'actions': action_center['actions'],
+                'lifetime': lifetime_metrics,
+                'lifetime_metrics': lifetime_metrics
             }
         return self._cached("get_sales_control_room", date_preset, _compute)
 

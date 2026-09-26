@@ -8,7 +8,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from .services.ingestion import data_store, safe_save_cache
+from .services.ingestion import data_store, safe_save_cache, get_cache_path
 from .services.analytics import AnalyticsEngine
 from .services.forecasting import forecasting_engine
 from .services.advisor import advisor_engine
@@ -67,16 +67,19 @@ async def startup_sync():
     data_store._load_cached_orders()
     data_store._load_cached_tracker()
     
+    is_serverless = os.getenv("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+    
     async def initial_background_sync():
         try:
             await asyncio.to_thread(data_store.sync_live_orders)
         except Exception as e:
             print("[STARTUP] Order sync notice:", e)
-        try:
-            await asyncio.to_thread(data_store.sync_from_url, "tracker", DEFAULT_TRACKER_CSV_URL)
-        except Exception as e:
-            print("[STARTUP] Tracker sync notice:", e)
-        asyncio.create_task(automated_cron_sync_loop())
+        if not is_serverless:
+            try:
+                await asyncio.to_thread(data_store.sync_from_url, "tracker", DEFAULT_TRACKER_CSV_URL)
+            except Exception as e:
+                print("[STARTUP] Tracker sync notice:", e)
+            asyncio.create_task(automated_cron_sync_loop())
 
     asyncio.create_task(initial_background_sync())
 
@@ -131,7 +134,7 @@ async def sync_tracker(force_sync: bool = False):
         }
         
     success, msg, count = await asyncio.to_thread(data_store.sync_from_url, "tracker", DEFAULT_TRACKER_CSV_URL)
-    if not success and (DATA_DIR / "tracker_cache.json").exists():
+    if not success and get_cache_path("tracker_cache.json"):
         data_store._load_cached_tracker()
         return {
             "status": "cached",
