@@ -334,7 +334,8 @@ class AnalyticsEngine:
                     "meta_reach": sum(m.get("reach", 0) for m in self.ds.meta_regional)
                 },
                 "executive_summary": exec_summary,
-                "next_sale_prediction": next_sale_pred
+                "next_sale_prediction": next_sale_pred,
+                "data_through": datetime.now().strftime('%d-%b-%Y %H:%M IST')
             }
         return self._cached("get_overview", f"{date_preset}_{marketplace}_{state}_{campaign}", _compute)
 
@@ -1636,6 +1637,16 @@ class AnalyticsEngine:
                 'zero_sale_indicator': f"Last sale ~{int(elapsed_h)}h ago ({latest_dt.strftime('%d-%b')})" if today_orders_cnt > 0 else f"CRITICAL: ~{int(elapsed_h)} hours without a reported sale (last sale {latest_dt.strftime('%d-%b')})"
             }
 
+            latest_click_ts = max((c.get("timestamp", "") for c in self.ds.tracker_clicks if c.get("timestamp")), default="")
+            data_through_str = datetime.now().strftime("%d-%b-%Y %H:%M IST")
+            if latest_click_ts:
+                try:
+                    clean_ts = latest_click_ts.replace("Z", "").split(".")[0]
+                    dt_ts = datetime.fromisoformat(clean_ts)
+                    data_through_str = dt_ts.strftime("%d-%b-%Y %H:%M IST")
+                except Exception:
+                    pass
+
             traffic_kpis = {
                 'total_events': calc_change(t_data['events_count'], y_data['events_count']),
                 'unique_visitors': calc_change(t_data['unique_visitors'], y_data['unique_visitors']),
@@ -1643,7 +1654,8 @@ class AnalyticsEngine:
                 'returning_visitors': calc_change(t_data['returning_visitors'], y_data['returning_visitors']),
                 'same_day_repeat_visitors': calc_change(t_data['repeat_visitors'], y_data['repeat_visitors']),
                 'same_day_repeat_rate': calc_change(t_data['repeat_rate'], y_data['repeat_rate']),
-                'avg_events_per_visitor': calc_change(t_data['avg_events_per_visitor'], y_data['avg_events_per_visitor'])
+                'avg_events_per_visitor': calc_change(t_data['avg_events_per_visitor'], y_data['avg_events_per_visitor']),
+                'data_through': data_through_str
             }
 
             u_vis = max(1, t_data['unique_visitors'])

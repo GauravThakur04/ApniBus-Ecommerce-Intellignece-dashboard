@@ -74,6 +74,10 @@ export default function App() {
     setIsRefreshing(true);
     try {
       if (forceSync) {
+        // Await live sync from Google Sheets and Metabase before fetching analytics
+        await Promise.allSettled([syncOrders(), syncTracker()]);
+      } else {
+        // Initial / interval background sync poll
         Promise.allSettled([syncOrders(), syncTracker()]).catch(() => {});
       }
 
@@ -111,11 +115,11 @@ export default function App() {
   };
 
   useEffect(() => {
-    loadAllData();
-    // Automated live data polling every 60 seconds
+    loadAllData(true);
+    // Automated live data polling every 45 seconds
     const interval = setInterval(() => {
-      loadAllData();
-    }, 60000);
+      loadAllData(false);
+    }, 45000);
     return () => clearInterval(interval);
   }, [filters]);
 
@@ -154,7 +158,7 @@ export default function App() {
           <DataQualityPage 
             qualityData={qualityData} 
             onOpenUploadModal={() => setIsUploadModalOpen(true)} 
-            onRefresh={loadAllData} 
+            onRefresh={() => loadAllData(true)} 
           />
         );
       case 'advisor':
@@ -162,7 +166,7 @@ export default function App() {
       case 'forecast':
         return <ForecastPage forecastData={forecastData} />;
       case 'changes':
-        return <ChangeLogPage changesData={changesData} onAddChange={loadAllData} />;
+        return <ChangeLogPage changesData={changesData} onAddChange={() => loadAllData(true)} />;
       case 'cohort':
         return <CohortPage />;
       default:
@@ -184,7 +188,7 @@ export default function App() {
       <Header
         filters={filters}
         setFilters={setFilters}
-        onRefresh={loadAllData}
+        onRefresh={() => loadAllData(true)}
         isRefreshing={isRefreshing}
         darkMode={darkMode}
         setDarkMode={setDarkMode}

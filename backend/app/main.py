@@ -74,11 +74,11 @@ async def startup_sync():
             await asyncio.to_thread(data_store.sync_live_orders)
         except Exception as e:
             print("[STARTUP] Order sync notice:", e)
+        try:
+            await asyncio.to_thread(data_store.sync_from_url, "tracker", DEFAULT_TRACKER_CSV_URL)
+        except Exception as e:
+            print("[STARTUP] Tracker sync notice:", e)
         if not is_serverless:
-            try:
-                await asyncio.to_thread(data_store.sync_from_url, "tracker", DEFAULT_TRACKER_CSV_URL)
-            except Exception as e:
-                print("[STARTUP] Tracker sync notice:", e)
             asyncio.create_task(automated_cron_sync_loop())
 
     asyncio.create_task(initial_background_sync())
@@ -87,7 +87,7 @@ async def startup_sync():
 def get_cron_status():
     return {
         "status": "active",
-        "cron_loop": "Running in background (Every 5 minutes)",
+        "cron_loop": "Running in background (Every 2 minutes)",
         "last_orders_sync": data_store.last_sync_times.get("orders"),
         "last_tracker_sync": data_store.last_sync_times.get("tracker"),
         "google_sheet_url": DEFAULT_ORDERS_SHEET_URL,
@@ -120,19 +120,27 @@ async def sync_orders():
 @app.post("/api/sync-tracker")
 async def sync_tracker(force_sync: bool = False):
     """
-    Synchronizes 15,000+ live click events from Metabase.
-    If cached clicks already exist, refreshes in background to eliminate UI latency.
+    Synchronizes 40,000+ live click events directly from Metabase.
     """
-    if data_store.tracker_clicks and not force_sync:
-        # Trigger background refresh without blocking UI request
-        asyncio.create_task(asyncio.to_thread(data_store.sync_from_url, "tracker", DEFAULT_TRACKER_CSV_URL))
+    now = datetime.now()
+    last_sync_str = data_store.last_sync_times.get("tracker", "")
+    is_fresh = False
+    if last_sync_str and not force_sync and data_store.tracker_clicks:
+        try:
+            last_dt = datetime.strptime(last_sync_str, "%Y-%m-%d %H:%M:%S")
+            if (now - last_dt).total_seconds() < 45:
+                is_fresh = True
+        except Exception:
+            pass
+
+    if is_fresh:
         return {
             "status": "live",
-            "message": f"Metabase live click stream active ({len(data_store.tracker_clicks):,} clicks loaded, background sync polling)",
+            "message": f"Metabase live click stream active ({len(data_store.tracker_clicks):,} clicks loaded)",
             "clicks_count": len(data_store.tracker_clicks),
             "last_sync": data_store.last_sync_times.get("tracker")
         }
-        
+
     success, msg, count = await asyncio.to_thread(data_store.sync_from_url, "tracker", DEFAULT_TRACKER_CSV_URL)
     if not success and get_cache_path("tracker_cache.json"):
         data_store._load_cached_tracker()
