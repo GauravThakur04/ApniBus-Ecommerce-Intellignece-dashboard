@@ -187,6 +187,34 @@ def configure_flipkart_api(req: FlipkartConfigRequest):
         "client_info": flipkart_client.get_status()
     }
 
+@app.get("/api/flipkart-api/orders")
+def get_flipkart_api_orders():
+    """Fetches live orders directly from official Flipkart Seller Hub API."""
+    ok, data = flipkart_client.fetch_orders_search()
+    if not ok:
+        raise HTTPException(status_code=400, detail=str(data))
+    return {
+        "status": "success",
+        "source": "Flipkart Seller Hub Official Self-Access API",
+        "order_items_count": len(data.get("orderItems", [])),
+        "data": data,
+        "client_status": flipkart_client.get_status()
+    }
+
+@app.get("/api/flipkart-api/listings")
+def get_flipkart_api_listings():
+    """Fetches live product listing status for active SKUs from Flipkart Seller Hub."""
+    skus = ["ETM-AB007", "APNIBUS-TM-001"]
+    listings = {}
+    for sku in skus:
+        ok, data = flipkart_client.fetch_listing_details(sku)
+        listings[sku] = data if ok else {"error": str(data)}
+    return {
+        "status": "success",
+        "listings": listings,
+        "client_status": flipkart_client.get_status()
+    }
+
 @app.get("/api/overview")
 def get_overview(
     date_preset: str = Query("all", description="all, today, yesterday, last7d, last14d, last30d"),

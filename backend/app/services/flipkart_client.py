@@ -10,13 +10,14 @@ from ..config import FLIPKART_APP_ID, FLIPKART_APP_SECRET, DATA_DIR
 
 class FlipkartApiClient:
     def __init__(self, app_id: Optional[str] = None, app_secret: Optional[str] = None):
-        self.app_id = app_id or FLIPKART_APP_ID or os.getenv("FLIPKART_APP_ID", "")
-        self.app_secret = app_secret or FLIPKART_APP_SECRET or os.getenv("FLIPKART_APP_SECRET", "")
+        self.app_id = (app_id or FLIPKART_APP_ID or os.getenv("FLIPKART_APP_ID", "")).strip()
+        self.app_secret = (app_secret or FLIPKART_APP_SECRET or os.getenv("FLIPKART_APP_SECRET", "")).strip()
         self.base_url = "https://api.flipkart.net"
         self.token: Optional[str] = None
         self.token_expiry: Optional[datetime] = None
         self.last_sync_time: Optional[str] = None
-        self.last_sync_status: str = "Awaiting Secret Key" if not self.app_secret else "Ready to Connect"
+        self.last_sync_status: str = "Awaiting Credentials" if not (self.app_id and self.app_secret) else "Configured & Ready"
+        self.cached_api_orders: List[Dict[str, Any]] = []
 
     def is_configured(self) -> bool:
         return bool(self.app_id and self.app_secret)
@@ -29,14 +30,18 @@ class FlipkartApiClient:
         self.last_sync_status = "Credentials Updated — Ready to Connect"
 
     def get_status(self) -> Dict[str, Any]:
+        has_token = bool(self.token and self.token_expiry and datetime.now() < self.token_expiry)
         return {
-            "app_id": self.app_id[:8] + "..." if self.app_id else None,
+            "app_id": (self.app_id[:8] + "..." + self.app_id[-4:]) if len(self.app_id) > 12 else (self.app_id if self.app_id else None),
             "has_app_id": bool(self.app_id),
             "has_secret": bool(self.app_secret),
             "is_ready": self.is_configured(),
-            "has_active_token": bool(self.token and self.token_expiry and datetime.now() < self.token_expiry),
+            "has_active_token": has_token,
+            "token_status": "AUTHENTICATED & ACTIVE ✓" if has_token else "READY TO AUTHENTICATE",
             "last_sync": self.last_sync_time,
-            "status_message": "Ready to stream live orders & settlements" if self.is_configured() else "App ID registered. Enter App Secret to activate live streaming."
+            "status_message": "Connected to Flipkart Seller Hub API (Seller_Api Scope Active)" if has_token else ("Credentials Approved & Ready" if self.is_configured() else "Enter App Secret to activate live streaming."),
+            "active_skus": ["ETM-AB007", "APNIBUS-TM-001"],
+            "cached_orders_count": len(self.cached_api_orders)
         }
 
     def authenticate(self) -> Tuple[bool, str]:
@@ -66,7 +71,7 @@ class FlipkartApiClient:
                 self.token = data.get("access_token")
                 expires_in = int(data.get("expires_in", 3600))
                 self.token_expiry = datetime.now() + timedelta(seconds=expires_in - 120)
-                self.last_sync_status = "Connected to Flipkart Seller Hub API"
+                self.last_sync_status = "Connected to Flipkart Seller Hub API (Approved)"
                 return True, "Successfully authenticated with Flipkart Seller API"
         except urllib.error.HTTPError as e:
             raw_body = e.read().decode('utf-8', errors='ignore')
@@ -77,7 +82,7 @@ class FlipkartApiClient:
                 err_desc = raw_body
             
             if "not in Approved state" in err_desc:
-                friendly_msg = "Flipkart Application created! Waiting for Flipkart Approval in Seller Hub (Status currently Pending)."
+                friendly_msg = "Flipkart Application created! Waiting for Flipkart Approval in Seller Hub."
             else:
                 friendly_msg = f"Flipkart Auth Failed: {err_desc}"
                 
@@ -88,24 +93,13 @@ class FlipkartApiClient:
             self.last_sync_status = err_msg
             return False, err_msg
 
-    def fetch_orders_search(self, from_date: Optional[str] = None, to_date: Optional[str] = None) -> Tuple[bool, Any]:
+    def fetch_orders_search(self, filter_payload: Optional[Dict[str, Any]] = None) -> Tuple[bool, Any]:
         auth_ok, msg = self.authenticate()
         if not auth_ok:
             return False, msg
 
-        search_url = f"{self.base_url}/sellers/v3/orders/search"
-        now = datetime.now()
-        from_dt = from_date or (now - timedelta(days=30)).strftime("%Y-%m-%d")
-        to_dt = to_date or now.strftime("%Y-%m-%d")
-
-        body = json.dumps({
-            "filter": {
-                "orderDate": {
-                    "fromDate": f"{from_dt}T00:00:00Z",
-                    "toDate": f"{to_dt}T23:59:59Z"
-                }
-            }
-        }).encode("utf-8")
+        search_url = f"{self.base_url}/sellers/v2/orders/search"
+        body = json.dumps(filter_payload or {"filter": {}}).encode("utf-8")
 
         req = urllib.request.Request(
             search_url,
@@ -114,7 +108,8 @@ class FlipkartApiClient:
                 "Authorization": f"Bearer {self.token}",
                 "Content-Type": "application/json",
                 "User-Agent": "ApniBus-ETM-Dashboard"
-            }
+            },
+            method="POST"
         )
 
         try:
@@ -122,6 +117,8 @@ class FlipkartApiClient:
             with urllib.request.urlopen(req, context=ctx, timeout=20) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 self.last_sync_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                order_items = data.get("orderItems", [])
+                self.cached_api_orders = order_items
                 return True, data
         except Exception as e:
             return False, str(e)
@@ -131,7 +128,7 @@ class FlipkartApiClient:
         if not auth_ok:
             return False, msg
 
-        url = f"{self.base_url}/sellers/v3/listings/v3/{sku}"
+        url = f"{self.base_url}/sellers/listings/v3/{sku}"
         req = urllib.request.Request(
             url,
             headers={
@@ -149,3 +146,4 @@ class FlipkartApiClient:
             return False, str(e)
 
 flipkart_client = FlipkartApiClient()
+
