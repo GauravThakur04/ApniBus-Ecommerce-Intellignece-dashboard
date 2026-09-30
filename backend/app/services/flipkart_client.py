@@ -100,8 +100,6 @@ class FlipkartApiClient:
 
         search_url = f"{self.base_url}/sellers/v2/orders/search"
         ctx = ssl._create_unverified_context()
-        seen_ids: set = set()
-        all_order_items: List[Dict[str, Any]] = []
 
         def _post(payload: dict) -> List[Dict[str, Any]]:
             body = json.dumps(payload).encode("utf-8")
@@ -122,37 +120,39 @@ class FlipkartApiClient:
                 return []
 
         if filter_payload:
-            # Caller-supplied custom payload — just use it directly
             items = _post(filter_payload)
             self.last_sync_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.cached_api_orders = items
             return True, {"orderItems": items, "total": len(items)}
 
-        # Pass 1: empty filter returns all orders in Flipkart's default window
-        pass1 = _post({"filter": {}})
-        for o in pass1:
-            key = o.get("orderItemId") or o.get("orderId")
-            if key and key not in seen_ids:
-                seen_ids.add(key)
-                all_order_items.append(o)
-
-        # Pass 2: query each active state individually so nothing is missed
-        # (RETURN_REQUESTED causes 400 on Flipkart v2 — excluded)
-        active_states = [
-            "APPROVED",
-            "READY_TO_DISPATCH",
-            "PACKED",
-            "PICKUP_COMPLETE",
-            "SHIPPED",
-            "DELIVERED",
-            "CANCELLED",
+        # Fetch all states in PARALLEL to keep total latency under ~3s
+        # RETURN_REQUESTED causes 400 on Flipkart v2 API — excluded
+        state_payloads = [
+            {"filter": {}},                                           # default window (all states)
+            {"filter": {"states": ["APPROVED"]}},
+            {"filter": {"states": ["READY_TO_DISPATCH"]}},
+            {"filter": {"states": ["PACKED"]}},
+            {"filter": {"states": ["PICKUP_COMPLETE"]}},
+            {"filter": {"states": ["SHIPPED"]}},
+            {"filter": {"states": ["DELIVERED"]}},
+            {"filter": {"states": ["CANCELLED"]}},
         ]
-        for state in active_states:
-            for o in _post({"filter": {"states": [state]}}):
-                key = o.get("orderItemId") or o.get("orderId")
-                if key and key not in seen_ids:
-                    seen_ids.add(key)
-                    all_order_items.append(o)
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        seen_ids: set = set()
+        all_order_items: List[Dict[str, Any]] = []
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = {pool.submit(_post, p): p for p in state_payloads}
+            for future in as_completed(futures):
+                try:
+                    for o in future.result():
+                        key = o.get("orderItemId") or o.get("orderId")
+                        if key and key not in seen_ids:
+                            seen_ids.add(key)
+                            all_order_items.append(o)
+                except Exception:
+                    pass
 
         # Sort newest first
         all_order_items.sort(key=lambda x: x.get("orderDate", ""), reverse=True)

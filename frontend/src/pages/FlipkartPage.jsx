@@ -48,26 +48,31 @@ export default function FlipkartPage({ flipkartData, onNavigate }) {
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // ── Fetch live Flipkart Seller API data on mount ──
+  // ── Fetch live Flipkart Seller API data (re-runs when refreshKey changes) ──
   useEffect(() => {
     const load = async () => {
       setApiLoading(true);
+      setApiError(null);
       try {
         const [ordRes, lstRes] = await Promise.all([
-          fetch('/api/flipkart-api/orders').then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch('/api/flipkart-api/orders').then(r => {
+            if (!r.ok) throw new Error(`Orders API ${r.status}`);
+            return r.json();
+          }),
           fetch('/api/flipkart-api/listings').then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
-        if (ordRes) setApiData(ordRes);
+        setApiData(ordRes);
         if (lstRes) setListings(lstRes);
       } catch (e) {
-        setApiError('Could not connect to Flipkart Seller API');
+        setApiError(String(e.message || 'Could not connect to Flipkart Seller API'));
       } finally {
         setApiLoading(false);
       }
     };
     load();
-  }, []);
+  }, [refreshKey]);
 
   if (!flipkartData) {
     return (
@@ -100,10 +105,11 @@ export default function FlipkartPage({ flipkartData, onNavigate }) {
   const topMetaStates = [...meta_regional].sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 8);
 
   // ── Live Seller API orders (from Flipkart API) ──
-  const liveOrders = apiData?.data?.orderItems || [];
+  // Backend returns: { status, data: { orderItems: [...] }, client_status }
+  const liveOrders = apiData?.data?.orderItems ?? apiData?.orderItems ?? [];
   const liveStatus = apiData?.client_status || api_status;
-  const activeOrders = liveOrders.filter(o => o.status !== 'CANCELLED');
-  const cancelledOrders = liveOrders.filter(o => o.status === 'CANCELLED');
+  const activeOrders = liveOrders.filter(o => !String(o.status || '').toUpperCase().includes('CANCEL'));
+  const cancelledOrders = liveOrders.filter(o => String(o.status || '').toUpperCase().includes('CANCEL'));
   const approvedOrders = liveOrders.filter(o => o.status === 'APPROVED');
 
   // ── Live Listings ──
@@ -790,9 +796,9 @@ export default function FlipkartPage({ flipkartData, onNavigate }) {
               className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition shadow-md shadow-blue-600/30">
               Seller Hub <ExternalLink className="w-3.5 h-3.5" />
             </a>
-            <button onClick={() => window.location.reload()}
+            <button onClick={() => setRefreshKey(k => k + 1)}
               className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition shadow-md shadow-emerald-600/20">
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh API
+              <RefreshCw className={`w-3.5 h-3.5 ${apiLoading ? 'animate-spin' : ''}`} /> {apiLoading ? 'Fetching...' : 'Refresh API'}
             </button>
           </div>
         </div>
