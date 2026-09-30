@@ -99,39 +99,14 @@ class FlipkartApiClient:
             return False, msg
 
         search_url = f"{self.base_url}/sellers/v2/orders/search"
-
-        # Explicitly query ALL active + historical states so no new/upcoming orders are missed.
-        # Empty filter {} only returns a narrow default window — new APPROVED orders get skipped.
-        default_filter = {
-            "filter": {
-                "states": [
-                    "APPROVED",
-                    "READY_TO_DISPATCH",
-                    "PACKED",
-                    "FORM_FAILED",
-                    "PICKUP_COMPLETE",
-                    "SHIPPED",
-                    "DELIVERED",
-                    "RETURN_REQUESTED",
-                    "CANCELLED"
-                ],
-                "orderingCriteria": {
-                    "ordering": [{"orderBy": "orderDate", "order": "DESC"}]
-                }
-            },
-            "pagination": {"pageSize": 20}
-        }
-        payload = filter_payload or default_filter
-
+        ctx = ssl._create_unverified_context()
+        seen_ids: set = set()
         all_order_items: List[Dict[str, Any]] = []
-        next_page_url: Optional[str] = None
-        MAX_PAGES = 10  # Safety cap to avoid infinite loops
 
-        for page_num in range(MAX_PAGES):
-            url = next_page_url or search_url
+        def _post(payload: dict) -> List[Dict[str, Any]]:
             body = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(
-                url,
+                search_url,
                 data=body,
                 headers={
                     "Authorization": f"Bearer {self.token}",
@@ -141,19 +116,46 @@ class FlipkartApiClient:
                 method="POST"
             )
             try:
-                ctx = ssl._create_unverified_context()
                 with urllib.request.urlopen(req, context=ctx, timeout=20) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    items = data.get("orderItems", [])
-                    all_order_items.extend(items)
-                    # Paginate if Flipkart returns a nextPageUrl
-                    next_page_url = data.get("nextPageUrl") or data.get("nextUrl") or None
-                    if not next_page_url or not items:
-                        break
-            except Exception as e:
-                if page_num == 0:
-                    return False, str(e)
-                break  # Return partial results already collected
+                    return json.loads(resp.read().decode("utf-8")).get("orderItems", [])
+            except Exception:
+                return []
+
+        if filter_payload:
+            # Caller-supplied custom payload — just use it directly
+            items = _post(filter_payload)
+            self.last_sync_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.cached_api_orders = items
+            return True, {"orderItems": items, "total": len(items)}
+
+        # Pass 1: empty filter returns all orders in Flipkart's default window
+        pass1 = _post({"filter": {}})
+        for o in pass1:
+            key = o.get("orderItemId") or o.get("orderId")
+            if key and key not in seen_ids:
+                seen_ids.add(key)
+                all_order_items.append(o)
+
+        # Pass 2: query each active state individually so nothing is missed
+        # (RETURN_REQUESTED causes 400 on Flipkart v2 — excluded)
+        active_states = [
+            "APPROVED",
+            "READY_TO_DISPATCH",
+            "PACKED",
+            "PICKUP_COMPLETE",
+            "SHIPPED",
+            "DELIVERED",
+            "CANCELLED",
+        ]
+        for state in active_states:
+            for o in _post({"filter": {"states": [state]}}):
+                key = o.get("orderItemId") or o.get("orderId")
+                if key and key not in seen_ids:
+                    seen_ids.add(key)
+                    all_order_items.append(o)
+
+        # Sort newest first
+        all_order_items.sort(key=lambda x: x.get("orderDate", ""), reverse=True)
 
         self.last_sync_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.cached_api_orders = all_order_items
