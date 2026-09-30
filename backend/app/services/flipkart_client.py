@@ -99,29 +99,65 @@ class FlipkartApiClient:
             return False, msg
 
         search_url = f"{self.base_url}/sellers/v2/orders/search"
-        body = json.dumps(filter_payload or {"filter": {}}).encode("utf-8")
 
-        req = urllib.request.Request(
-            search_url,
-            data=body,
-            headers={
-                "Authorization": f"Bearer {self.token}",
-                "Content-Type": "application/json",
-                "User-Agent": "ApniBus-ETM-Dashboard"
+        # Explicitly query ALL active + historical states so no new/upcoming orders are missed.
+        # Empty filter {} only returns a narrow default window — new APPROVED orders get skipped.
+        default_filter = {
+            "filter": {
+                "states": [
+                    "APPROVED",
+                    "READY_TO_DISPATCH",
+                    "PACKED",
+                    "FORM_FAILED",
+                    "PICKUP_COMPLETE",
+                    "SHIPPED",
+                    "DELIVERED",
+                    "RETURN_REQUESTED",
+                    "CANCELLED"
+                ],
+                "orderingCriteria": {
+                    "ordering": [{"orderBy": "orderDate", "order": "DESC"}]
+                }
             },
-            method="POST"
-        )
+            "pagination": {"pageSize": 20}
+        }
+        payload = filter_payload or default_filter
 
-        try:
-            ctx = ssl._create_unverified_context()
-            with urllib.request.urlopen(req, context=ctx, timeout=20) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                self.last_sync_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                order_items = data.get("orderItems", [])
-                self.cached_api_orders = order_items
-                return True, data
-        except Exception as e:
-            return False, str(e)
+        all_order_items: List[Dict[str, Any]] = []
+        next_page_url: Optional[str] = None
+        MAX_PAGES = 10  # Safety cap to avoid infinite loops
+
+        for page_num in range(MAX_PAGES):
+            url = next_page_url or search_url
+            body = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=body,
+                headers={
+                    "Authorization": f"Bearer {self.token}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "ApniBus-ETM-Dashboard"
+                },
+                method="POST"
+            )
+            try:
+                ctx = ssl._create_unverified_context()
+                with urllib.request.urlopen(req, context=ctx, timeout=20) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    items = data.get("orderItems", [])
+                    all_order_items.extend(items)
+                    # Paginate if Flipkart returns a nextPageUrl
+                    next_page_url = data.get("nextPageUrl") or data.get("nextUrl") or None
+                    if not next_page_url or not items:
+                        break
+            except Exception as e:
+                if page_num == 0:
+                    return False, str(e)
+                break  # Return partial results already collected
+
+        self.last_sync_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.cached_api_orders = all_order_items
+        return True, {"orderItems": all_order_items, "total": len(all_order_items)}
 
     def fetch_listing_details(self, sku: str = "ETM-AB007") -> Tuple[bool, Any]:
         auth_ok, msg = self.authenticate()
