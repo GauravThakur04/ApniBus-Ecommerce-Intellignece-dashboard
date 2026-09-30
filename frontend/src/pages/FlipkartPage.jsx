@@ -47,6 +47,7 @@ export default function FlipkartPage({ flipkartData, onNavigate }) {
   const [listings, setListings] = useState(null);
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
+  const [showCancelled, setShowCancelled] = useState(false);
 
   // ── Fetch live Flipkart Seller API data on mount ──
   useEffect(() => {
@@ -219,7 +220,8 @@ export default function FlipkartPage({ flipkartData, onNavigate }) {
           </div>
         )}
 
-        {liveOrders.length > 0 ? (
+        {/* ── Active / Upcoming Orders Table ── */}
+        {activeOrders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
@@ -235,7 +237,7 @@ export default function FlipkartPage({ flipkartData, onNavigate }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {liveOrders.map((o, idx) => {
+                {activeOrders.map((o, idx) => {
                   const pc = o.priceComponents || {};
                   const rawDate = o.orderDate || '';
                   const dispDate = rawDate ? rawDate.replace('T', ' ').slice(0, 16) : '—';
@@ -243,9 +245,7 @@ export default function FlipkartPage({ flipkartData, onNavigate }) {
                     <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-white text-[11px]">
                         {o.orderId}
-                        <div className="text-[9px] font-normal text-slate-400">
-                          Item: {o.orderItemId?.slice(-10)}
-                        </div>
+                        <div className="text-[9px] font-normal text-slate-400">Item: {o.orderItemId?.slice(-10)}</div>
                       </td>
                       <td className="py-3 px-3 font-mono text-slate-500 text-[11px]">{dispDate} IST</td>
                       <td className="py-3 px-3">
@@ -254,18 +254,12 @@ export default function FlipkartPage({ flipkartData, onNavigate }) {
                         </span>
                       </td>
                       <td className="py-3 px-3"><StatusBadge status={o.status} /></td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
-                        ₹{INR(pc.customerPrice)}
-                      </td>
-                      <td className="py-3 px-3 text-right font-mono text-slate-600 dark:text-slate-300">
-                        ₹{INR(pc.sellingPrice)}
-                      </td>
+                      <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">₹{INR(pc.customerPrice)}</td>
+                      <td className="py-3 px-3 text-right font-mono text-slate-600 dark:text-slate-300">₹{INR(pc.sellingPrice)}</td>
                       <td className="py-3 px-3 text-right font-mono text-rose-500">
                         {pc.flipkartDiscount > 0 ? `-₹${INR(pc.flipkartDiscount)}` : '—'}
                       </td>
-                      <td className="py-3 px-3 text-right font-mono text-slate-400 text-[10px]">
-                        {o.hsn || '—'} / GST 18%
-                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-slate-400 text-[10px]">{o.hsn || '—'} / GST 18%</td>
                     </tr>
                   );
                 })}
@@ -273,8 +267,62 @@ export default function FlipkartPage({ flipkartData, onNavigate }) {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-slate-400 text-xs">
-            {apiLoading ? 'Connecting to Flipkart Seller API...' : 'No live orders in current API window.'}
+          <div className="text-center py-6 text-slate-400 text-xs">
+            {apiLoading ? 'Connecting to Flipkart Seller API...' : 'No active/upcoming orders right now.'}
+          </div>
+        )}
+
+        {/* ── Cancelled Orders — Collapsible ── */}
+        {cancelledOrders.length > 0 && (
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
+            <button
+              onClick={() => setShowCancelled(v => !v)}
+              className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 transition-colors group"
+            >
+              <RotateCcw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-300" />
+              {showCancelled ? 'Hide' : 'Show'} Cancelled Orders ({cancelledOrders.length})
+              <span className="ml-1 text-[10px] text-slate-400">(not counted in active feed)</span>
+            </button>
+
+            {showCancelled && (
+              <div className="mt-3 overflow-x-auto rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/10">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-rose-200 dark:border-rose-900/40 text-rose-400 uppercase tracking-wider text-[10px]">
+                      <th className="py-2.5 px-3">Order ID</th>
+                      <th className="py-2.5 px-3">Cancelled Date</th>
+                      <th className="py-2.5 px-3">SKU</th>
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3 text-right">Customer Price</th>
+                      <th className="py-2.5 px-3 text-right">Selling Price</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-rose-100 dark:divide-rose-900/30">
+                    {cancelledOrders.map((o, idx) => {
+                      const pc = o.priceComponents || {};
+                      const rawDate = o.orderDate || '';
+                      const dispDate = rawDate ? rawDate.replace('T', ' ').slice(0, 16) : '—';
+                      return (
+                        <tr key={idx} className="opacity-70">
+                          <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-300 text-[11px] line-through decoration-rose-400">
+                            {o.orderId}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono text-slate-400 text-[11px]">{dispDate} IST</td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-mono">
+                              {o.sku}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3"><StatusBadge status={o.status} /></td>
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-400 line-through">₹{INR(pc.customerPrice)}</td>
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-400 line-through">₹{INR(pc.sellingPrice)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
